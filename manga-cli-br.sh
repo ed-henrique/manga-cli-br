@@ -9,22 +9,18 @@
 #    2.4 (a) Search another manga
 #    2.5 (q) exit
 # 3. Handle tmp files when forcefully closed
-# 4. Find another suitable host for translated mangas (Muitomanga sucks)
-# 5. Verify if dependencies are already installed in the machine
-# 6. Change README.md on Github to be more descriptive and useful
-# 7. Create installation script
-# 8. Decide on a directory for installation
-# 9. Search the law to upddate disclaimer
+# 4. Verify if dependencies are already installed in the machine
+# 5. Search the law to upddate disclaimer
 
 ########
 # INFO #
 ########
 
-version="0.3a"
+version="0.4b"
 
-tmp_dir="$HOME/Documentos/manga-cli-using-mangalivre/tmp"
-img_dir="$HOME/Documentos/manga-cli-using-mangalivre/imgs"
-pdf_dir="$HOME/Documentos/manga-cli-using-mangalivre/pdf"
+tmp_dir="$HOME/.cache/manga-cli-br/tmp"
+img_dir="$HOME/.cache/manga-cli-br/imgs"
+pdf_dir="$HOME/.cache/manga-cli-br/pdf"
 
 # dependencies=("curl" "sed" "awk" "tr" "rm" "zathura" "cat" "echo" "wc" "grep" "mapfile" "clear" "mkdir" "img2pdf")
 
@@ -59,9 +55,6 @@ get_titles_and_links() {
 get_chapters() {
     curl --silent "https://muitomanga.com/manga/${manga_link}" | grep "class=\"single-chapter\" data-id-cap=\"" | awk -F'"' '{print $4}' > "${tmp_dir}/chapters.txt"
     echo -n "[$(tail -n 1 "${tmp_dir}/chapters.txt")~$(head -n 1 "${tmp_dir}/chapters.txt")]"
-
-    # chapters_min=$(tail -n 1 "${tmp_dir}/chapters.txt")
-    # chapters_max=$(head -n 1 "${tmp_dir}/chapters.txt")
 }
 
 get_imgs() {
@@ -208,13 +201,34 @@ remove_tmp_files() {
 remove_pdf_file() {
     rm -r "${pdf_dir}"
 }
+
+remove_files_from_last_session() {
+    remove_tmp_files
+    remove_pdf_file
+}
+
 ############
 # START UP #
 ############
 
+remove_files_from_last_session
+
 #####################
 # VERIFYING OPTIONS # 
 #####################
+
+main() {
+    search_input
+    mkdir "${tmp_dir}"
+    format_search
+    get_titles_and_links
+    print_mangas
+    choose_manga
+    choose_chapter
+    get_imgs
+    get_pdf
+    open_pdf
+}
 
 while [[ "${1}" ]]; do
     case "${1}" in
@@ -238,16 +252,7 @@ while [[ "${1}" ]]; do
     shift
 done
 
-search_input
-mkdir "${tmp_dir}"
-format_search
-get_titles_and_links
-print_mangas
-choose_manga
-choose_chapter
-get_imgs
-get_pdf
-open_pdf
+main
 
 if ! [[ ${debug_mode} ]]; then
     remove_tmp_files
