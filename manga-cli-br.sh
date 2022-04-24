@@ -11,6 +11,10 @@
 # 3. Handle tmp files when forcefully closed
 # 4. Verify if dependencies are already installed in the machine
 # 5. Search the law to upddate disclaimer
+# 6. Check if the script actually needs all of the ${dependencies}
+# 7. Work on a better incrementing algorithm for next chapter
+
+############### FINISH PRINT_OPTIONS FUNCTION ##########################
 
 ########
 # INFO #
@@ -22,7 +26,7 @@ tmp_dir="$HOME/.cache/manga-cli-br/tmp"
 img_dir="${tmp_dir}/imgs"
 pdf_dir="$HOME/.cache/manga-cli-br/pdf"
 
-# dependencies=("curl" "sed" "awk" "tr" "rm" "zathura" "cat" "echo" "wc" "grep" "mapfile" "clear" "mkdir" "img2pdf")
+dependencies=("ls" "cat" "curl" "awk" "sed" "tr" "du" "rm" "mkdir" "git" "diff" "patch" "zathura" "img2pdf")
 
 
 ####################
@@ -55,6 +59,8 @@ get_titles_and_links() {
 get_chapters() {
     curl --silent "https://muitomanga.com/manga/${manga_link}" | grep "class=\"single-chapter\" data-id-cap=\"" | awk -F'"' '{print $4}' > "${tmp_dir}/chapters.txt"
     echo -n "[$(tail -n 1 "${tmp_dir}/chapters.txt")~$(head -n 1 "${tmp_dir}/chapters.txt")]"
+
+    chapters_max=$(head -n 1 "${tmp_dir}/chapters.txt")
 }
 
 get_imgs() {
@@ -122,10 +128,62 @@ print_help() {
     -v ou --version: mostra a versão do script
     -d ou --debug: não exclui os arquivos temporários gerados pelo script
 
-    COMO SAIR DO LEITOR DE PDF:
-    aperte q
+    COMANDOS IMPORTANTES DO LEITOR DE PDF:
+    +: aumenta o zoom
+    -: diminui o zoom
+    q: sair do leitor
 
 EOF
+}
+
+print_options() {
+    echo "[Capítulo ${chosen_chapter} de ${chapters_max}] ${manga_title}"
+    echo "[n] - próximo capítulo"
+    echo "[p] - capítulo anterior"
+    echo "[s] - selecionar capítulo"
+    echo "[a] - buscar outro mangá"
+    echo "[q] - sair"
+
+    echo -n "Escolha uma opção: "
+    read -r chosen_option
+
+    case "${chosen_option}" in
+        n)
+            chosen_chapter=$((chosen_chapter+1))
+            get_imgs
+            get_pdf
+        ;;
+        p)
+            chosen_chapter=$((chosen_chapter-1))
+        ;;
+        s)
+
+            echo "item = 2 or item = 3"
+        ;;
+        a)
+            formatted_search=
+            not_found=
+            titles_amount=
+            chapters_max=
+            imgs_max=
+            manga_to_search=
+            chosen_manga=
+            manga_title=
+            manga_link=
+            chosen_chapter=
+            clear
+            main
+        ;;
+        q)
+            clear
+        ;;
+        *)
+            clear
+            echo "Opção inválida"
+            print_options
+        ;;
+    esac
+   
 }
 
 print_mangas() {
@@ -157,6 +215,7 @@ choose_manga() {
     done
 
     echo "Mangá escolhido: $(sed -n "${chosen_manga}p" "${tmp_dir}/titles.txt")"
+    manga_title=$(sed -n "${chosen_manga}p" "${tmp_dir}/titles.txt")
     manga_link=$(sed -n "$((chosen_manga))p" "${tmp_dir}/links.txt")
 }
 
@@ -176,49 +235,49 @@ choose_chapter() {
     echo "Baixando capítulo..."
 }
 
-# input_options() {
-
-# }
-
 ###################
 # OTHER FUNCTIONS #
 ###################
+
+check_dependencies() {
+    for dependency in "${dependencies[@]}"; do
+        if ! command -v "${dependency}" &> /dev/null; then
+            if ! pip3 show "${dependency}" &> /dev/null; then
+                echo "Missing dependency: ${dependency}"
+                exit_script="true"
+            fi
+        fi
+    done
+
+    if [[ "${exit_script}" == "true" ]]; then
+        exit 1
+    fi
+}
 
 open_pdf() {
     zathura --page=1 --mode="fullscreen" "${pdf_dir}/result.pdf"
 }
 
 remove_tmp_files() {
-    # rm "${tmp_dir}/imgs.txt"
-    # rm "${tmp_dir}/imgs2.txt"
-    # rm "${tmp_dir}/imgs_addresses.txt"
-    # rm "${tmp_dir}/titles.txt"
-    # rm "${tmp_dir}/titles_and_links.txt"
-    # rm "${tmp_dir}/chapters.txt"
-    rm -r "${tmp_dir}"
+    if test -d "${tmp_dir}"; then
+        rm -r "${tmp_dir}"
+    fi
 }
 
 remove_pdf_file() {
-    rm -r "${pdf_dir}"
+    if test -d "${pdf_dir}"; then
+        rm -r "${pdf_dir}"
+    fi
 }
 
-############
-# START UP #
-############
-
-if test -d "${tmp_dir}"; then
-    remove_tmp_files
-fi
-
-if test -d "${pdf_dir}"; then
-    remove_pdf_file
-fi
-
-#####################
-# VERIFYING OPTIONS # 
-#####################
+#################
+# MAIN FUNCTION #
+#################
 
 main() {
+    remove_tmp_files
+    remove_pdf_file
+    check_dependencies
     search_input
     mkdir --parents "${tmp_dir}"
     format_search
@@ -229,7 +288,13 @@ main() {
     get_imgs
     get_pdf
     open_pdf
+    print_options
 }
+
+#####################
+# VERIFYING OPTIONS # 
+#####################
+
 
 while [[ "${1}" ]]; do
     case "${1}" in
@@ -253,8 +318,14 @@ while [[ "${1}" ]]; do
     shift
 done
 
+#########
+# START #
+#########
+
 main
 
 if ! [[ ${debug_mode} ]]; then
     remove_tmp_files
 fi
+
+exit 0
