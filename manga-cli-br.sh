@@ -6,15 +6,11 @@
 #    2.1 (n) Get next chapter 
 #    2.2 (p) Get previous chapter
 #    2.3 (s) Select chapter
-#    2.4 (a) Search another manga
-#    2.5 (q) exit
-# 3. Handle tmp files when forcefully closed
-# 4. Verify if dependencies are already installed in the machine
-# 5. Search the law to upddate disclaimer
-# 6. Check if the script actually needs all of the ${dependencies}
-# 7. Work on a better incrementing algorithm for next chapter
+# 3. Search the law to upddate disclaimer
+# 4. Check if the script actually needs all of the ${dependencies}
+# 5. Work on a better incrementing algorithm for next chapter
 
-############### FINISH PRINT_OPTIONS FUNCTION ##########################
+############### FINISH PRINT_OPTIONS FUNCTION ###############
 
 ########
 # INFO #
@@ -60,6 +56,7 @@ get_chapters() {
     curl --silent "https://muitomanga.com/manga/${manga_link}" | grep "class=\"single-chapter\" data-id-cap=\"" | awk -F'"' '{print $4}' > "${tmp_dir}/chapters.txt"
     echo -n "[$(tail -n 1 "${tmp_dir}/chapters.txt")~$(head -n 1 "${tmp_dir}/chapters.txt")]"
 
+    chapters_min=$(tail -n 1 "${tmp_dir}/chapters.txt")
     chapters_max=$(head -n 1 "${tmp_dir}/chapters.txt")
 }
 
@@ -96,8 +93,11 @@ get_imgs() {
 get_pdf() {
     echo "Convertendo imagens em PDF..."
     
-    mkdir "${pdf_dir}"
-    img2pdf $(cat "${tmp_dir}/imgs_addresses.txt") --output "${pdf_dir}/result.pdf"
+    if ! test -d "${pdf_dir}"; then
+        mkdir "${pdf_dir}"
+    fi
+
+    img2pdf $(cat "${tmp_dir}/imgs_addresses.txt") --output "${pdf_dir}/capitulo_${chosen_chapter}.pdf"
     rm -r "${img_dir}"
     clear
 }
@@ -137,6 +137,7 @@ EOF
 }
 
 print_options() {
+    clear
     echo "[Capítulo ${chosen_chapter} de ${chapters_max}] ${manga_title}"
     echo "[n] - próximo capítulo"
     echo "[p] - capítulo anterior"
@@ -150,15 +151,65 @@ print_options() {
     case "${chosen_option}" in
         n)
             chosen_chapter=$((chosen_chapter+1))
+            
+            if [ ${chosen_chapter} -gt ${chapters_max} ]; then
+                echo "Capítulo ainda não está no site!"
+                print_options
+            fi
+
+            while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters.txt")" ]]; do
+                if [ ${chosen_chapter} -gt ${chapters_max} ]; then
+                    echo "Capítulo ainda não está no site!"
+                    print_options    
+                fi
+                chosen_chapter=$((chosen_chapter+1))
+            done
+
+            clear
+            echo "Capítulo escolhido: ${chosen_chapter}"
+            echo "Baixando capítulo..."
+
+            remove_img_files
             get_imgs
             get_pdf
+            open_pdf
+            print_options
         ;;
         p)
             chosen_chapter=$((chosen_chapter-1))
+
+            if [ ${chosen_chapter} -lt ${chapters_min} ]; then
+                echo "Capítulo não existe!"
+                print_options
+            fi
+
+            while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters.txt")" ]]; do
+                echo "${chosen_chapter}"
+                if [ ${chosen_chapter} -lt ${chapters_min} ]; then
+                    echo "Capítulo não existe!"
+                    print_options
+                fi
+                chosen_chapter=$((chosen_chapter-1))
+            done
+
+            clear
+            echo "Capítulo escolhido: ${chosen_chapter}"
+            echo "Baixando capítulo..."
+
+            remove_img_files
+            get_imgs
+            get_pdf
+            open_pdf
+            print_options
         ;;
         s)
+            choose_chapter
 
-            echo "item = 2 or item = 3"
+            remove_img_files
+            get_imgs
+            get_pdf
+            open_pdf
+            print_options
         ;;
         a)
             formatted_search=
@@ -231,6 +282,7 @@ choose_chapter() {
         read -r chosen_chapter
     done
 
+    clear
     echo "Capítulo escolhido: ${chosen_chapter}"
     echo "Baixando capítulo..."
 }
@@ -255,7 +307,15 @@ check_dependencies() {
 }
 
 open_pdf() {
-    zathura --page=1 --mode="fullscreen" "${pdf_dir}/result.pdf"
+    zathura --page=1 --mode="fullscreen" "${pdf_dir}/capitulo_${chosen_chapter}.pdf"
+}
+
+remove_img_files() {
+    if test -d "${img_dir}"; then
+        rm -r "${img_dir}"
+    fi
+    rm "${tmp_dir}/imgs_addresses.txt"
+    rm "${tmp_dir}/imgs2.txt"
 }
 
 remove_tmp_files() {
