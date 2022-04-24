@@ -14,6 +14,7 @@
 # 6. Change README.md on Github to be more descriptive and useful
 # 7. Create installation script
 # 8. Decide on a directory for installation
+# 9. Search the law to upddate disclaimer
 
 ########
 # INFO #
