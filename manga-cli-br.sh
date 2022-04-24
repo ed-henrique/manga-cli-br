@@ -99,7 +99,7 @@ get_pdf() {
 
     img2pdf $(cat "${tmp_dir}/imgs_addresses.txt") --output "${pdf_dir}/capitulo_${chosen_chapter}.pdf"
     rm -r "${img_dir}"
-    clear
+    # clear
 }
 
 ###################
@@ -137,7 +137,7 @@ EOF
 }
 
 print_options() {
-    clear
+    # clear
     echo "[Capítulo ${chosen_chapter} de ${chapters_max}] ${manga_title}"
     echo "[n] - próximo capítulo"
     echo "[p] - capítulo anterior"
@@ -154,18 +154,20 @@ print_options() {
             
             if [ ${chosen_chapter} -gt ${chapters_max} ]; then
                 echo "Capítulo ainda não está no site!"
+                chosen_chapter="${chapters_max}"
                 print_options
             fi
 
             while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters.txt")" ]]; do
                 if [ ${chosen_chapter} -gt ${chapters_max} ]; then
                     echo "Capítulo ainda não está no site!"
+                    chosen_chapter="${chapters_max}"
                     print_options    
                 fi
                 chosen_chapter=$((chosen_chapter+1))
             done
 
-            clear
+            # clear
             echo "Capítulo escolhido: ${chosen_chapter}"
             echo "Baixando capítulo..."
 
@@ -180,6 +182,7 @@ print_options() {
 
             if [ ${chosen_chapter} -lt ${chapters_min} ]; then
                 echo "Capítulo não existe!"
+                chosen_chapter="${chapters_min}"
                 print_options
             fi
 
@@ -187,12 +190,13 @@ print_options() {
                 echo "${chosen_chapter}"
                 if [ ${chosen_chapter} -lt ${chapters_min} ]; then
                     echo "Capítulo não existe!"
+                    chosen_chapter="${chapters_min}"
                     print_options
                 fi
                 chosen_chapter=$((chosen_chapter-1))
             done
 
-            clear
+            # clear
             echo "Capítulo escolhido: ${chosen_chapter}"
             echo "Baixando capítulo..."
 
@@ -204,7 +208,6 @@ print_options() {
         ;;
         s)
             choose_chapter
-
             remove_img_files
             get_imgs
             get_pdf
@@ -222,14 +225,14 @@ print_options() {
             manga_title=
             manga_link=
             chosen_chapter=
-            clear
+            # clear
             main
         ;;
         q)
-            clear
+            # clear
         ;;
         *)
-            clear
+            # clear
             echo "Opção inválida"
             print_options
         ;;
@@ -282,7 +285,7 @@ choose_chapter() {
         read -r chosen_chapter
     done
 
-    clear
+    # clear
     echo "Capítulo escolhido: ${chosen_chapter}"
     echo "Baixando capítulo..."
 }
@@ -388,4 +391,5 @@ if ! [[ ${debug_mode} ]]; then
     remove_tmp_files
 fi
 
+# clear
 exit 0
