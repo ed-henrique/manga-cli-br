@@ -1,7 +1,10 @@
 # manga-cli-br
 
 Script em Bash para ler mangá usando seu terminal!
+<br>
 Inspirado (ou seja, uma parte do código veio de lá rs) no [manga-cli](https://github.com/7USTIN/manga-cli)
+<br>
+Agradecimentos ao [Rosialdo](https://github.com/Rosialdo) que ajudou nos testes.
 
 ## Índice
 
