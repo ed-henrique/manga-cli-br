@@ -19,7 +19,7 @@
 version="0.4b"
 
 tmp_dir="$HOME/.cache/manga-cli-br/tmp"
-img_dir="$HOME/.cache/manga-cli-br/imgs"
+img_dir="${tmp_dir}/imgs"
 pdf_dir="$HOME/.cache/manga-cli-br/pdf"
 
 # dependencies=("curl" "sed" "awk" "tr" "rm" "zathura" "cat" "echo" "wc" "grep" "mapfile" "clear" "mkdir" "img2pdf")
@@ -185,7 +185,7 @@ choose_chapter() {
 ###################
 
 open_pdf() {
-    zathura --page=1 "${pdf_dir}/result.pdf"
+    zathura --page=1 --mode="fullscreen" "${pdf_dir}/result.pdf"
 }
 
 remove_tmp_files() {
@@ -202,16 +202,17 @@ remove_pdf_file() {
     rm -r "${pdf_dir}"
 }
 
-remove_files_from_last_session() {
-    remove_tmp_files
-    remove_pdf_file
-}
-
 ############
 # START UP #
 ############
 
-remove_files_from_last_session
+if test -d "${tmp_dir}"; then
+    remove_tmp_files
+fi
+
+if test -d "${pdf_dir}"; then
+    remove_pdf_file
+fi
 
 #####################
 # VERIFYING OPTIONS # 
@@ -219,7 +220,7 @@ remove_files_from_last_session
 
 main() {
     search_input
-    mkdir "${tmp_dir}"
+    mkdir --parents "${tmp_dir}"
     format_search
     get_titles_and_links
     print_mangas
