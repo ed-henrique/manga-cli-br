@@ -2,21 +2,24 @@
 
 # What's left to do?
 # 1. Refactor the code to create less tmp files and be more efficient overall (and also faster)
-# 2. Make menu with options to either
-#    2.1 (n) Get next chapter 
-#    2.2 (p) Get previous chapter
-#    2.3 (s) Select chapter
-# 3. Search the law to upddate disclaimer
-# 4. Check if the script actually needs all of the ${dependencies}
-# 5. Work on a better incrementing algorithm for next chapter
-
-############### FINISH PRINT_OPTIONS FUNCTION ###############
+# 2. Search the law to upddate disclaimer
+# 3. Check if the script actually needs all of the ${dependencies}
+# 4. Work on a better incrementing algorithm for next and previous chapter
+# 5. Add alias to bashrc to use manga-cli-br
+# 6. Deal with half chapters
+# 7. Normalize img sizes to avoid black gaps between chapters
+# 8. If possible, change from muitomanga to mangalivre
+#    8.1 - Mangalivre uses Cloudfare
+#    8.2 - I can't get the POST to get the JSON file with search results because of a no js site
+#    8.3 - Trying to work around it using scrapy
+#    8.4 - Changing to python may change this whole project ;-;
+#    8.5 - Maybe using puppeteer is a viable option
 
 ########
 # INFO #
 ########
 
-version="0.4b"
+version="0.6b"
 
 tmp_dir="$HOME/.cache/manga-cli-br/tmp"
 img_dir="${tmp_dir}/imgs"
@@ -42,28 +45,29 @@ get_titles_and_links() {
 
     if [ "${not_found}" -ge 1 ]; then
         echo "Mangá não foi encontrado"
-        exit 1
+        exit 0
     else
         curl --silent "https://muitomanga.com/buscar?q=${formatted_search}" | grep "</a></h3>" | awk -F'<a |</a>' '{print $2}' > "${tmp_dir}/titles-and-links.txt"
         awk -F'/|"' '{print $4}' "${tmp_dir}/titles-and-links.txt" > "${tmp_dir}/links.txt" &
         awk -F'>' '{print $2}' "${tmp_dir}/titles-and-links.txt" > "${tmp_dir}/titles.txt"
     fi
 
-    titles_amount=$(wc -l "${tmp_dir}/titles.txt" | awk '{print $1}')
+    titles_amount=$(wc -l "${tmp_dir}/titles.txt" | awk '{print $1}')   
 }
 
 get_chapters() {
     curl --silent "https://muitomanga.com/manga/${manga_link}" | grep "class=\"single-chapter\" data-id-cap=\"" | awk -F'"' '{print $4}' > "${tmp_dir}/chapters.txt"
-    echo -n "[$(tail -n 1 "${tmp_dir}/chapters.txt")~$(head -n 1 "${tmp_dir}/chapters.txt")]"
 
-    chapters_min=$(tail -n 1 "${tmp_dir}/chapters.txt")
+    # chapters_total=$(wc -l "${tmp_dir}/chapters.txt" | awk '{print $1}')
+    chapters_min=$(tail -n 1 "${tmp_dir}/chapters.txt" &)
     chapters_max=$(head -n 1 "${tmp_dir}/chapters.txt")
+
+    echo -n "[${chapters_min}~${chapters_max}]"
 }
 
 get_imgs() {
-    curl --silent "https://muitomanga.com/ler/${manga_link}/capitulo-${chosen_chapter}" | grep "imagens_cap" > "${tmp_dir}/imgs.txt"
-    curl --silent "https://muitomanga.com/ler/${manga_link}/capitulo-${chosen_chapter}" | grep "value=\"0\"" | awk -F'1 / |<' '{print $3}' >> "${tmp_dir}/imgs.txt"
-    imgs_max=$(tail -n 1 "${tmp_dir}/imgs.txt")
+    curl --silent "https://muitomanga.com/ler/${manga_link}/capitulo-${chosen_chapter}" | grep "imagens_cap" > "${tmp_dir}/imgs.txt" &
+    imgs_max=$(curl --silent "https://muitomanga.com/ler/${manga_link}/capitulo-${chosen_chapter}" | grep "value=\"0\"" | awk -F'1 / |<' '{print $3}')
 
     i=2
     while [ $((i)) -lt $((imgs_max * 2 + 1)) ]; do
@@ -71,8 +75,7 @@ get_imgs() {
         i=$((i+2))
     done
     
-    sed 's/\\//g' "${tmp_dir}/imgs2.txt" | grep '\S' > "${tmp_dir}/imgs.txt"
-    mapfile -t img_urls < <(cat "${tmp_dir}/imgs.txt")
+    mapfile -t img_urls < <(sed 's/\\//g' "${tmp_dir}/imgs2.txt" | grep '\S')
 
     mkdir "${img_dir}"
     i=0
@@ -99,7 +102,6 @@ get_pdf() {
 
     img2pdf $(cat "${tmp_dir}/imgs_addresses.txt") --output "${pdf_dir}/capitulo_${chosen_chapter}.pdf"
     rm -r "${img_dir}"
-    # clear
 }
 
 ###################
@@ -137,7 +139,7 @@ EOF
 }
 
 print_options() {
-    # clear
+    clear
     echo "[Capítulo ${chosen_chapter} de ${chapters_max}] ${manga_title}"
     echo "[n] - próximo capítulo"
     echo "[p] - capítulo anterior"
@@ -146,98 +148,6 @@ print_options() {
     echo "[q] - sair"
 
     echo -n "Escolha uma opção: "
-    read -r chosen_option
-
-    case "${chosen_option}" in
-        n)
-            chosen_chapter=$((chosen_chapter+1))
-            
-            if [ ${chosen_chapter} -gt ${chapters_max} ]; then
-                echo "Capítulo ainda não está no site!"
-                chosen_chapter="${chapters_max}"
-                print_options
-            fi
-
-            while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters.txt")" ]]; do
-                if [ ${chosen_chapter} -gt ${chapters_max} ]; then
-                    echo "Capítulo ainda não está no site!"
-                    chosen_chapter="${chapters_max}"
-                    print_options    
-                fi
-                chosen_chapter=$((chosen_chapter+1))
-            done
-
-            # clear
-            echo "Capítulo escolhido: ${chosen_chapter}"
-            echo "Baixando capítulo..."
-
-            remove_img_files
-            get_imgs
-            get_pdf
-            open_pdf
-            print_options
-        ;;
-        p)
-            chosen_chapter=$((chosen_chapter-1))
-
-            if [ ${chosen_chapter} -lt ${chapters_min} ]; then
-                echo "Capítulo não existe!"
-                chosen_chapter="${chapters_min}"
-                print_options
-            fi
-
-            while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters.txt")" ]]; do
-                echo "${chosen_chapter}"
-                if [ ${chosen_chapter} -lt ${chapters_min} ]; then
-                    echo "Capítulo não existe!"
-                    chosen_chapter="${chapters_min}"
-                    print_options
-                fi
-                chosen_chapter=$((chosen_chapter-1))
-            done
-
-            # clear
-            echo "Capítulo escolhido: ${chosen_chapter}"
-            echo "Baixando capítulo..."
-
-            remove_img_files
-            get_imgs
-            get_pdf
-            open_pdf
-            print_options
-        ;;
-        s)
-            choose_chapter
-            remove_img_files
-            get_imgs
-            get_pdf
-            open_pdf
-            print_options
-        ;;
-        a)
-            formatted_search=
-            not_found=
-            titles_amount=
-            chapters_max=
-            imgs_max=
-            manga_to_search=
-            chosen_manga=
-            manga_title=
-            manga_link=
-            chosen_chapter=
-            # clear
-            main
-        ;;
-        q)
-            # clear
-        ;;
-        *)
-            # clear
-            echo "Opção inválida"
-            print_options
-        ;;
-    esac
-   
 }
 
 print_mangas() {
@@ -247,6 +157,9 @@ print_mangas() {
         i=$((i+1))
     done <"${tmp_dir}/titles.txt"
 }
+
+# print_chapters() {
+# }
 
 #############
 # GET INPUT #
@@ -285,11 +198,115 @@ choose_chapter() {
         read -r chosen_chapter
     done
 
-    # clear
+    clear
     echo "Capítulo escolhido: ${chosen_chapter}"
     echo "Baixando capítulo..."
 }
 
+choose_option() {
+    read -r chosen_option
+
+    case "${chosen_option}" in
+        n)
+            chosen_chapter=$((chosen_chapter+1))
+            
+            if [ ${chosen_chapter} -gt ${chapters_max} ]; then
+                echo "Capítulo ainda não está no site!"
+                chosen_chapter="${chapters_max}"
+                print_options
+                choose_option
+            fi
+
+            while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters.txt")" ]]; do
+                if [ ${chosen_chapter} -gt ${chapters_max} ]; then
+                    echo "Capítulo ainda não está no site!"
+                    chosen_chapter="${chapters_max}"
+                    print_options
+                    choose_option
+                fi
+                chosen_chapter=$((chosen_chapter+1))
+            done
+
+            clear
+            echo "Capítulo escolhido: ${chosen_chapter}"
+            echo "Baixando capítulo..."
+
+            remove_img_files
+            get_imgs
+            get_pdf
+            clear
+            open_pdf
+            print_options
+            choose_option
+        ;;
+        p)
+            chosen_chapter=$((chosen_chapter-1))
+
+            if [ ${chosen_chapter} -lt ${chapters_min} ]; then
+                echo "Capítulo não existe!"
+                chosen_chapter="${chapters_min}"
+                print_options
+                choose_option
+            fi
+
+            while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters.txt")" ]]; do
+                echo "${chosen_chapter}"
+                if [ ${chosen_chapter} -lt ${chapters_min} ]; then
+                    echo "Capítulo não existe!"
+                    chosen_chapter="${chapters_min}"
+                    print_options
+                    choose_option
+                fi
+                chosen_chapter=$((chosen_chapter-1))
+            done
+
+            clear
+            echo "Capítulo escolhido: ${chosen_chapter}"
+            echo "Baixando capítulo..."
+
+            remove_img_files
+            get_imgs
+            get_pdf
+            clear
+            open_pdf
+            print_options
+            choose_option
+        ;;
+        s)
+            choose_chapter
+            remove_img_files
+            get_imgs
+            get_pdf
+            clear
+            open_pdf
+            print_options
+            choose_option
+        ;;
+        a)
+            formatted_search=
+            not_found=
+            titles_amount=
+            chapters_max=
+            imgs_max=
+            manga_to_search=
+            chosen_manga=
+            manga_title=
+            manga_link=
+            chosen_chapter=
+            clear
+            main
+        ;;
+        q)
+            clear
+        ;;
+        *)
+            clear
+            echo "Opção inválida"
+            print_options
+            choose_option
+        ;;
+    esac
+}
 ###################
 # OTHER FUNCTIONS #
 ###################
@@ -350,14 +367,15 @@ main() {
     choose_chapter
     get_imgs
     get_pdf
+    clear
     open_pdf
     print_options
+    choose_option
 }
 
 #####################
 # VERIFYING OPTIONS # 
 #####################
-
 
 while [[ "${1}" ]]; do
     case "${1}" in
@@ -391,5 +409,5 @@ if ! [[ ${debug_mode} ]]; then
     remove_tmp_files
 fi
 
-# clear
+clear
 exit 0
