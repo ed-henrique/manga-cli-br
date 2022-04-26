@@ -3,17 +3,16 @@
 # What's left to do?
 # 1. Refactor the code to create less tmp files and be more efficient overall (and also faster)
 # 2. Search the law to upddate disclaimer
-# 3. Check if the script actually needs all of the ${dependencies}
-# 4. Work on a better incrementing algorithm for next and previous chapter
-# 5. Add alias to bashrc to use manga-cli-br
-# 6. Deal with half chapters
-# 7. Normalize img sizes to avoid black gaps between chapters
-# 8. If possible, change from muitomanga to mangalivre
-#    8.1 - Mangalivre uses Cloudfare
-#    8.2 - I can't get the POST to get the JSON file with search results because of a no js site
-#    8.3 - Trying to work around it using scrapy
-#    8.4 - Changing to python may change this whole project ;-;
-#    8.5 - Maybe using puppeteer is a viable option
+# 3. Work on a better incrementing algorithm for next and previous chapter
+# 4. Add alias to bashrc to use manga-cli-br
+# 5. Deal with half chapters
+# 6. Normalize img sizes to avoid black gaps between chapters
+# 7. If possible, change from muitomanga to mangalivre
+#    7.1 - Mangalivre uses Cloudfare
+#    7.2 - I can't get the POST to get the JSON file with search results because of a no js site
+#    7.3 - Trying to work around it using scrapy
+#    7.4 - Changing to python may change this whole project ;-;
+#    7.5 - Maybe using puppeteer is a viable option
 
 ########
 # INFO #
@@ -22,10 +21,10 @@
 version="0.6b"
 
 tmp_dir="$HOME/.cache/manga-cli-br/tmp"
-img_dir="${tmp_dir}/imgs"
+img_dir="${tmp_dir}/media"
 pdf_dir="$HOME/.cache/manga-cli-br/pdf"
 
-dependencies=("ls" "cat" "curl" "awk" "sed" "tr" "du" "rm" "mkdir" "git" "diff" "patch" "zathura" "img2pdf")
+dependencies=("cat" "curl" "awk" "sed" "tr" "rm" "mkdir" "git" "zathura" "img2pdf")
 
 
 ####################
@@ -47,35 +46,35 @@ get_titles_and_links() {
         echo "Mangá não foi encontrado"
         exit 0
     else
-        curl --silent "https://muitomanga.com/buscar?q=${formatted_search}" | grep "</a></h3>" | awk -F'<a |</a>' '{print $2}' > "${tmp_dir}/titles-and-links.txt"
-        awk -F'/|"' '{print $4}' "${tmp_dir}/titles-and-links.txt" > "${tmp_dir}/links.txt" &
-        awk -F'>' '{print $2}' "${tmp_dir}/titles-and-links.txt" > "${tmp_dir}/titles.txt"
+        curl --silent "https://muitomanga.com/buscar?q=${formatted_search}" | grep "</a></h3>" | awk -F'<a |</a>' '{print $2}' > "${tmp_dir}/titles-and-links"
+        awk -F'/|"' '{print $4}' "${tmp_dir}/titles-and-links" > "${tmp_dir}/links" &
+        awk -F'>' '{print $2}' "${tmp_dir}/titles-and-links" > "${tmp_dir}/titles"
     fi
 
-    titles_amount=$(wc -l "${tmp_dir}/titles.txt" | awk '{print $1}')   
+    titles_amount=$(wc -l "${tmp_dir}/titles" | awk '{print $1}')   
 }
 
 get_chapters() {
-    curl --silent "https://muitomanga.com/manga/${manga_link}" | grep "class=\"single-chapter\" data-id-cap=\"" | awk -F'"' '{print $4}' > "${tmp_dir}/chapters.txt"
+    curl --silent "https://muitomanga.com/manga/${manga_link}" | grep "class=\"single-chapter\" data-id-cap=\"" | awk -F'"' '{print $4}' > "${tmp_dir}/chapters"
 
-    # chapters_total=$(wc -l "${tmp_dir}/chapters.txt" | awk '{print $1}')
-    chapters_min=$(tail -n 1 "${tmp_dir}/chapters.txt" &)
-    chapters_max=$(head -n 1 "${tmp_dir}/chapters.txt")
+    # chapters_total=$(wc -l "${tmp_dir}/chapters" | awk '{print $1}')
+    chapters_min=$(tail -n 1 "${tmp_dir}/chapters" &)
+    chapters_max=$(head -n 1 "${tmp_dir}/chapters")
 
     echo -n "[${chapters_min}~${chapters_max}]"
 }
 
 get_imgs() {
-    curl --silent "https://muitomanga.com/ler/${manga_link}/capitulo-${chosen_chapter}" | grep "imagens_cap" > "${tmp_dir}/imgs.txt" &
+    curl --silent "https://muitomanga.com/ler/${manga_link}/capitulo-${chosen_chapter}" | grep "imagens_cap" > "${tmp_dir}/imgs"
     imgs_max=$(curl --silent "https://muitomanga.com/ler/${manga_link}/capitulo-${chosen_chapter}" | grep "value=\"0\"" | awk -F'1 / |<' '{print $3}')
 
     i=2
     while [ $((i)) -lt $((imgs_max * 2 + 1)) ]; do
-        awk -F'"' "{print \$$((i))}" "${tmp_dir}/imgs.txt" >> "${tmp_dir}/imgs2.txt"
+        awk -F'"' "{print \$$((i))}" "${tmp_dir}/imgs" >> "${tmp_dir}/imgs2"
         i=$((i+2))
     done
     
-    mapfile -t img_urls < <(sed 's/\\//g' "${tmp_dir}/imgs2.txt" | grep '\S')
+    mapfile -t img_urls < <(sed 's/\\//g' "${tmp_dir}/imgs2" | grep '\S')
 
     mkdir "${img_dir}"
     i=0
@@ -87,7 +86,7 @@ get_imgs() {
     i=0
     for image in "${img_urls[@]}"; do
         i=$((i+1))
-        echo -n "${img_dir}/${i}.jpg " >> "${tmp_dir}/imgs_addresses.txt"
+        echo -n "${img_dir}/${i}.jpg " >> "${tmp_dir}/imgs_addresses"
     done
 
     wait
@@ -100,7 +99,7 @@ get_pdf() {
         mkdir "${pdf_dir}"
     fi
 
-    img2pdf $(cat "${tmp_dir}/imgs_addresses.txt") --output "${pdf_dir}/capitulo_${chosen_chapter}.pdf"
+    img2pdf $(cat "${tmp_dir}/imgs_addresses") --output "${pdf_dir}/capitulo_${chosen_chapter}.pdf"
     rm -r "${img_dir}"
 }
 
@@ -155,11 +154,8 @@ print_mangas() {
     while read -r line; do
         echo "[${i}] - ${line}"
         i=$((i+1))
-    done <"${tmp_dir}/titles.txt"
+    done <"${tmp_dir}/titles"
 }
-
-# print_chapters() {
-# }
 
 #############
 # GET INPUT #
@@ -181,9 +177,9 @@ choose_manga() {
         read -r chosen_manga
     done
 
-    echo "Mangá escolhido: $(sed -n "${chosen_manga}p" "${tmp_dir}/titles.txt")"
-    manga_title=$(sed -n "${chosen_manga}p" "${tmp_dir}/titles.txt")
-    manga_link=$(sed -n "$((chosen_manga))p" "${tmp_dir}/links.txt")
+    echo "Mangá escolhido: $(sed -n "${chosen_manga}p" "${tmp_dir}/titles")"
+    manga_title=$(sed -n "${chosen_manga}p" "${tmp_dir}/titles")
+    manga_link=$(sed -n "$((chosen_manga))p" "${tmp_dir}/links")
 }
 
 choose_chapter() {
@@ -192,7 +188,7 @@ choose_chapter() {
     echo -n ": "
     read -r chosen_chapter
 
-    while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters.txt")" ]]; do
+    while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters")" ]]; do
         echo "Número fora do escopo ou capítulo não existe"
         echo -n "Escolha um capítulo: "
         read -r chosen_chapter
@@ -210,15 +206,15 @@ choose_option() {
         n)
             chosen_chapter=$((chosen_chapter+1))
             
-            if [ ${chosen_chapter} -gt ${chapters_max} ]; then
+            if ((chosen_chapter > chapters_max)); then
                 echo "Capítulo ainda não está no site!"
                 chosen_chapter="${chapters_max}"
                 print_options
                 choose_option
             fi
 
-            while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters.txt")" ]]; do
-                if [ ${chosen_chapter} -gt ${chapters_max} ]; then
+            while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters")" ]]; do
+                if ((chosen_chapter > chapters_max)); then
                     echo "Capítulo ainda não está no site!"
                     chosen_chapter="${chapters_max}"
                     print_options
@@ -242,16 +238,16 @@ choose_option() {
         p)
             chosen_chapter=$((chosen_chapter-1))
 
-            if [ ${chosen_chapter} -lt ${chapters_min} ]; then
+            if ((chosen_chapter < chapters_min)); then
                 echo "Capítulo não existe!"
                 chosen_chapter="${chapters_min}"
                 print_options
                 choose_option
             fi
 
-            while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters.txt")" ]]; do
+            while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters")" ]]; do
                 echo "${chosen_chapter}"
-                if [ ${chosen_chapter} -lt ${chapters_min} ]; then
+                if ((chosen_chapter < chapters_min)); then
                     echo "Capítulo não existe!"
                     chosen_chapter="${chapters_min}"
                     print_options
@@ -334,8 +330,8 @@ remove_img_files() {
     if test -d "${img_dir}"; then
         rm -r "${img_dir}"
     fi
-    rm "${tmp_dir}/imgs_addresses.txt"
-    rm "${tmp_dir}/imgs2.txt"
+    rm "${tmp_dir}/imgs_addresses"
+    rm "${tmp_dir}/imgs2"
 }
 
 remove_tmp_files() {
@@ -405,7 +401,7 @@ done
 
 main
 
-if ! [[ ${debug_mode} ]]; then
+if ! [[ "${debug_mode}" ]]; then
     remove_tmp_files
 fi
 
