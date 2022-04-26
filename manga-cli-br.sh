@@ -7,12 +7,8 @@
 # 4. Add alias to bashrc to use manga-cli-br
 # 5. Deal with half chapters
 # 6. Normalize img sizes to avoid black gaps between chapters
-# 7. If possible, change from muitomanga to mangalivre
-#    7.1 - Mangalivre uses Cloudfare
-#    7.2 - I can't get the POST to get the JSON file with search results because of a no js site
-#    7.3 - Trying to work around it using scrapy
-#    7.4 - Changing to python may change this whole project ;-;
-#    7.5 - Maybe using puppeteer is a viable option
+# 7. If possible, change from muitomanga to mangalivre (This solves issue #6 and mangalivre has a huge db)
+#    7.1 - Working on it using selenium
 
 ########
 # INFO #
@@ -103,6 +99,7 @@ get_pdf() {
     fi
 
     img2pdf $(cat "${tmp_dir}/imgs_addresses") --output "${pdf_dir}/capitulo_${chosen_chapter}.pdf"
+    
     rm -r "${img_dir}"
 }
 
@@ -210,7 +207,8 @@ choose_chapter() {
     echo -n "Escolha um capítulo: "
     read -r chosen_chapter
 
-    while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters")" ]]; do
+    # while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters")" ]]; do
+    while ! grep -q -x "${chosen_chapter}" "${tmp_dir}/chapters"; do
         echo "Número fora do escopo ou capítulo não existe"
         echo -n "Escolha um capítulo: "
         read -r chosen_chapter
@@ -235,7 +233,7 @@ choose_option() {
                 choose_option
             fi
 
-            while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters")" ]]; do
+            while ! grep -q -x "${chosen_chapter}" "${tmp_dir}/chapters"; do
                 if ((chosen_chapter > chapters_max)); then
                     echo "Capítulo ainda não está no site!"
                     chosen_chapter="${chapters_max}"
@@ -267,7 +265,7 @@ choose_option() {
                 choose_option
             fi
 
-            while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters")" ]]; do
+            while ! grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters"; do
                 echo "${chosen_chapter}"
                 if ((chosen_chapter < chapters_min)); then
                     echo "Capítulo não existe!"
@@ -291,6 +289,7 @@ choose_option() {
             choose_option
         ;;
         s)
+            print_chapters
             choose_chapter
             remove_img_files
             get_imgs
