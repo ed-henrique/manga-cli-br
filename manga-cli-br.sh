@@ -32,7 +32,11 @@ dependencies=("cat" "curl" "awk" "sed" "tr" "rm" "mkdir" "git" "zathura" "img2pd
 ####################
 
 format_search() {
-    formatted_search="$(printf "%s" "${manga_to_search}" | tr " -" "+" | sed 's/^.//')"
+    if [[ ${#manga_to_search} == 1 ]]; then
+        formatted_search="${manga_to_search}"
+    else
+        formatted_search="$(printf "%s" "${manga_to_search}" | tr " -" "+" | sed 's/^.//')"
+    fi
 }
 
 ####################
@@ -55,13 +59,12 @@ get_titles_and_links() {
 }
 
 get_chapters() {
-    curl --silent "https://muitomanga.com/manga/${manga_link}" | grep "class=\"single-chapter\" data-id-cap=\"" | awk -F'"' '{print $4}' > "${tmp_dir}/chapters"
+    curl --silent "https://muitomanga.com/manga/${manga_link}" | grep "class=\"single-chapter\" data-id-cap=\"" | awk -F'"' '{print $4}' | sort -V > "${tmp_dir}/chapters"
 
     # chapters_total=$(wc -l "${tmp_dir}/chapters" | awk '{print $1}')
-    chapters_min=$(tail -n 1 "${tmp_dir}/chapters" &)
-    chapters_max=$(head -n 1 "${tmp_dir}/chapters")
-
-    echo -n "[${chapters_min}~${chapters_max}]"
+    chapters_min=$(head -n 1 "${tmp_dir}/chapters")
+    chapters_max=$(tail -n 1 "${tmp_dir}/chapters")
+    max_char_count=$(wc -L "${tmp_dir}/chapters" | awk '{print $1}')
 }
 
 get_imgs() {
@@ -152,9 +155,30 @@ print_options() {
 print_mangas() {
     i=1
     while read -r line; do
-        echo "[${i}] - ${line}"
+        printf "[%2s] - %s\n" "${i}" "${line}"
         i=$((i+1))
     done <"${tmp_dir}/titles"
+}
+
+print_chapters() {
+    printf "Capítulos:\n\n"
+
+    i=1
+    while read -r line; do
+        printf "[%${max_char_count}s] " "${line}"
+
+        if ((i % 15 == 0)); then
+            echo ""
+        fi
+        i=$((i+1))
+    done <"${tmp_dir}/chapters"
+    
+    if ((i % 15 == 1)); then
+        echo ""
+    else
+        echo ""
+        echo ""
+    fi
 }
 
 #############
@@ -183,9 +207,7 @@ choose_manga() {
 }
 
 choose_chapter() {
-    echo -n "Escolha um capítulo "
-    get_chapters
-    echo -n ": "
+    echo -n "Escolha um capítulo: "
     read -r chosen_chapter
 
     while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters")" ]]; do
@@ -360,6 +382,8 @@ main() {
     get_titles_and_links
     print_mangas
     choose_manga
+    get_chapters
+    print_chapters
     choose_chapter
     get_imgs
     get_pdf
