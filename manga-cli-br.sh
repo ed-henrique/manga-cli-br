@@ -4,17 +4,13 @@
 # 1. Refactor the code to create less tmp files and be more efficient overall (and also faster)
 # 2. Search the law to upddate disclaimer
 # 3. Work on a better incrementing algorithm for next and previous chapter
-# 4. Add alias to bashrc to use manga-cli-br
-# 5. Deal with half chapters
-# 6. Normalize img sizes to avoid black gaps between chapters
-# 7. If possible, change from muitomanga to mangalivre (This solves issue #6 and mangalivre has a huge db)
-#    7.1 - Working on it using selenium
+# 4. Normalize img sizes to avoid black gaps between chapters
 
 ########
 # INFO #
 ########
 
-version="0.6b"
+version="1.0"
 
 tmp_dir="$HOME/.cache/manga-cli-br/tmp"
 img_dir="${tmp_dir}/media"
@@ -43,7 +39,7 @@ get_titles_and_links() {
     not_found="$(curl --silent "https://muitomanga.com/buscar?q=${formatted_search}" | grep -c "Nenhum resultado encontrado")"
 
     if [ "${not_found}" -ge 1 ]; then
-        echo "Mangá não foi encontrado"
+        echo "Mangá não foi encontrado!"
         exit 0
     else
         curl --silent "https://muitomanga.com/buscar?q=${formatted_search}" | grep "</a></h3>" | awk -F'<a |</a>' '{print $2}' > "${tmp_dir}/titles-and-links"
@@ -57,7 +53,6 @@ get_titles_and_links() {
 get_chapters() {
     curl --silent "https://muitomanga.com/manga/${manga_link}" | grep "class=\"single-chapter\" data-id-cap=\"" | awk -F'"' '{print $4}' | sort -V > "${tmp_dir}/chapters"
 
-    # chapters_total=$(wc -l "${tmp_dir}/chapters" | awk '{print $1}')
     chapters_min=$(head -n 1 "${tmp_dir}/chapters")
     chapters_max=$(tail -n 1 "${tmp_dir}/chapters")
     max_char_count=$(wc -L "${tmp_dir}/chapters" | awk '{print $1}')
@@ -173,8 +168,7 @@ print_chapters() {
     if ((i % 15 == 1)); then
         echo ""
     else
-        echo ""
-        echo ""
+        printf "\n\n"
     fi
 }
 
@@ -189,13 +183,15 @@ search_input() {
 }
 
 choose_manga() {
-    echo -n "Escolha um mangá: "
-    read -r chosen_manga
-    
-    while [ $((chosen_manga)) -lt 1 ] || [ $((chosen_manga)) -gt $((titles_amount)) ]; do
-        echo "Número fora do escopo" 
+    while true; do
         echo -n "Escolha um mangá: "
         read -r chosen_manga
+
+        if [ $((chosen_manga)) -lt 1 ] || [ $((chosen_manga)) -gt $((titles_amount)) ]; then
+            echo "Número fora do escopo!" 
+        else
+            break
+        fi
     done
 
     echo "Mangá escolhido: $(sed -n "${chosen_manga}p" "${tmp_dir}/titles")"
@@ -204,14 +200,15 @@ choose_manga() {
 }
 
 choose_chapter() {
-    echo -n "Escolha um capítulo: "
-    read -r chosen_chapter
-
-    # while ! [[ "$(grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters")" ]]; do
-    while ! grep -q -x "${chosen_chapter}" "${tmp_dir}/chapters"; do
-        echo "Número fora do escopo ou capítulo não existe"
+    while true; do
         echo -n "Escolha um capítulo: "
         read -r chosen_chapter
+
+        if ! grep -q -x "${chosen_chapter}" "${tmp_dir}/chapters"; then
+            echo "Número fora do escopo ou capítulo não existe!"
+        else
+            break
+        fi
     done
 
     clear
@@ -224,23 +221,13 @@ choose_option() {
 
     case "${chosen_option}" in
         n)
-            chosen_chapter=$((chosen_chapter+1))
-            
-            if ((chosen_chapter > chapters_max)); then
-                echo "Capítulo ainda não está no site!"
-                chosen_chapter="${chapters_max}"
-                print_options
-                choose_option
-            fi
-
-            while ! grep -q -x "${chosen_chapter}" "${tmp_dir}/chapters"; do
+            while true; do
+                chosen_chapter=$((chosen_chapter+1))
                 if ((chosen_chapter > chapters_max)); then
                     echo "Capítulo ainda não está no site!"
-                    chosen_chapter="${chapters_max}"
-                    print_options
-                    choose_option
+                    exit 0
                 fi
-                chosen_chapter=$((chosen_chapter+1))
+                ! grep -q -x "${chosen_chapter}" "${tmp_dir}/chapters" || break
             done
 
             clear
@@ -256,24 +243,13 @@ choose_option() {
             choose_option
         ;;
         p)
-            chosen_chapter=$((chosen_chapter-1))
-
-            if ((chosen_chapter < chapters_min)); then
-                echo "Capítulo não existe!"
-                chosen_chapter="${chapters_min}"
-                print_options
-                choose_option
-            fi
-
-            while ! grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters"; do
-                echo "${chosen_chapter}"
+            while true; do
+                chosen_chapter=$((chosen_chapter-1))
                 if ((chosen_chapter < chapters_min)); then
                     echo "Capítulo não existe!"
-                    chosen_chapter="${chapters_min}"
-                    print_options
-                    choose_option
+                    exit 0
                 fi
-                chosen_chapter=$((chosen_chapter-1))
+                ! grep -o -x "${chosen_chapter}" "${tmp_dir}/chapters" || break
             done
 
             clear
@@ -318,7 +294,7 @@ choose_option() {
         ;;
         *)
             clear
-            echo "Opção inválida"
+            echo "Opção inválida!"
             print_options
             choose_option
         ;;
@@ -332,7 +308,7 @@ check_dependencies() {
     for dependency in "${dependencies[@]}"; do
         if ! command -v "${dependency}" &> /dev/null; then
             if ! pip3 show "${dependency}" &> /dev/null; then
-                echo "Missing dependency: ${dependency}"
+                echo "Falta a dependência: ${dependency}"
                 exit_script="true"
             fi
         fi
