@@ -2,9 +2,14 @@
 
 Script em Bash para ler mangá usando seu terminal!
 <br>
-Inspirado (ou seja, uma parte do código veio de lá rs) no [manga-cli](https://github.com/7USTIN/manga-cli)
+Baseado no [manga-cli](https://github.com/7USTIN/manga-cli)
 <br>
-Agradecimentos ao [Rosialdo](https://github.com/Rosialdo) que ajudou nos testes.
+Agradecimentos ao [Rosialdo](https://github.com/Rosialdo) por ajudar nos testes.
+<br>
+<br>
+**NESSE MOMENTO ESTOU VERIFICANDO A POSSIBILIDADE DE MIGRAR DO MUITOMANGA PARA O MANGALIVRE, TANTO PARA DAR ACESSO A UM MAIOR NÚMERO DE MANGÁS QUANTO PARA RESOLVER O PROBLEMA DE DISPOSIÇÃO DAS IMAGENS NO PDF, PRINCIPALMENTE EM WEBTOONS.**
+<br>
+**SE ALGUÉM SOUBER COMO POSSO PASSAR UM REQUEST PELO CLOUDFLARE SEM TOMAR UM 403, ME FALA, PARA QUE EU POSSA CONSEGUIR REALIZAR ESSA MIGRAÇÃO.**
 
 ## Índice
 
