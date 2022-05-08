@@ -6,11 +6,6 @@ Baseado no [manga-cli](https://github.com/7USTIN/manga-cli)
 <br>
 Agradecimentos ao [Rosialdo](https://github.com/Rosialdo) por ajudar nos testes.
 <br>
-<br>
-**NESSE MOMENTO ESTOU VERIFICANDO A POSSIBILIDADE DE MIGRAR DO MUITOMANGA PARA O MANGALIVRE, TANTO PARA DAR ACESSO A UM MAIOR NÚMERO DE MANGÁS QUANTO PARA RESOLVER O PROBLEMA DE DISPOSIÇÃO DAS IMAGENS NO PDF, PRINCIPALMENTE EM WEBTOONS.**
-<br>
-<br>
-**SE ALGUÉM SOUBER COMO POSSO PASSAR UM REQUEST PELO CLOUDFLARE SEM TOMAR UM 403, ME FALA, PARA QUE EU POSSA CONSEGUIR REALIZAR ESSA MIGRAÇÃO.**
 
 ## Índice
 
@@ -49,6 +44,5 @@ sudo cp manga-cli-br /usr/local/bin/manga-cli-br
 - GNU gawk (awk)
 - GNU sed
 - curl
-- git
 - img2pdf
 - zathura

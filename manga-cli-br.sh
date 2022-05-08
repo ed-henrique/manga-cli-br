@@ -16,7 +16,7 @@ tmp_dir="$HOME/.cache/manga-cli-br/tmp"
 img_dir="${tmp_dir}/media"
 pdf_dir="$HOME/.cache/manga-cli-br/pdf"
 
-dependencies=("cat" "curl" "awk" "sed" "tr" "rm" "mkdir" "git" "zathura" "img2pdf")
+dependencies=("cat" "curl" "awk" "sed" "tr" "rm" "mkdir" "zathura" "img2pdf")
 
 
 ####################
